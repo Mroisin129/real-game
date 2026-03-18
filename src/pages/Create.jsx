@@ -1,12 +1,14 @@
 import { useState } from "react";
-import confetti from "canvas-confetti";
 
 export default function Create() {
   const [image, setImage] = useState(null);
   const [difficulty, setDifficulty] = useState(3);
-  const [pieces, setPieces] = useState([]);
-  const [draggedIndex, setDraggedIndex] = useState(null);
-  const [completed, setCompleted] = useState(false);
+  const [title, setTitle] = useState("");
+  const [template, setTemplate] = useState("standard");
+  const [message, setMessage] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [eventTime, setEventTime] = useState("");
+  const [eventLocation, setEventLocation] = useState("");
 
   const difficulties = {
     Easy: 3,
@@ -18,196 +20,166 @@ export default function Create() {
   function handleUpload(e) {
     const file = e.target.files[0];
     if (file) {
-      setImage(URL.createObjectURL(file));
-      setPieces([]);
-      setCompleted(false);
+      const url = URL.createObjectURL(file);
+      setImage(url);
     }
   }
 
-  function generatePuzzle() {
-    if (!image) return;
+  function savePuzzle() {
+    if (!image) {
+      alert("Upload an image first");
+      return;
+    }
 
-    const img = new Image();
-    img.src = image;
+    const id = Math.random().toString(36).substring(2, 9);
 
-    img.onload = () => {
-      const size = 300;
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      canvas.width = size;
-      canvas.height = size;
-
-      ctx.drawImage(img, 0, 0, size, size);
-
-      const pieceSize = size / difficulty;
-      let newPieces = [];
-
-      for (let row = 0; row < difficulty; row++) {
-        for (let col = 0; col < difficulty; col++) {
-          const pieceCanvas = document.createElement("canvas");
-          pieceCanvas.width = pieceSize;
-          pieceCanvas.height = pieceSize;
-
-          const pieceCtx = pieceCanvas.getContext("2d");
-
-          pieceCtx.drawImage(
-            canvas,
-            col * pieceSize,
-            row * pieceSize,
-            pieceSize,
-            pieceSize,
-            0,
-            0,
-            pieceSize,
-            pieceSize
-          );
-
-          newPieces.push({
-            id: `${row}-${col}`,
-            src: pieceCanvas.toDataURL(),
-            correctIndex: row * difficulty + col,
-          });
-        }
-      }
-
-      // shuffle
-      newPieces = newPieces.sort(() => Math.random() - 0.5);
-
-      setPieces(newPieces);
-      setCompleted(false);
+    const puzzleData = {
+      id,
+      title,
+      image,
+      difficulty,
+      template,
+      message,
+      eventDate,
+      eventTime,
+      eventLocation,
     };
-  }
 
-  function handleDrop(targetIndex) {
-    if (draggedIndex === null) return;
+    localStorage.setItem(`puzzle-${id}`, JSON.stringify(puzzleData));
 
-    const updated = [...pieces];
-    const temp = updated[draggedIndex];
-    updated[draggedIndex] = updated[targetIndex];
-    updated[targetIndex] = temp;
-
-    setPieces(updated);
-    setDraggedIndex(null);
-
-    checkCompletion(updated);
-  }
-
-  function checkCompletion(piecesArray) {
-    const isComplete = piecesArray.every(
-      (piece, index) => piece.correctIndex === index
-    );
-
-    if (isComplete) {
-      setCompleted(true);
-      fireConfetti();
-    }
-  }
-
-  function fireConfetti() {
-    confetti({
-      particleCount: 200,
-      spread: 120,
-      origin: { y: 0.6 },
-    });
+    const link = `${window.location.origin}/puzzle/${id}`;
+    alert("Share this link:\n" + link);
   }
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 20, maxWidth: 700, margin: "0 auto" }}>
       <h1>Create Puzzle</h1>
 
-      {/* Upload */}
-      <input type="file" accept="image/*" onChange={handleUpload} />
-
-      {/* Difficulty */}
-      <h3>Select Difficulty:</h3>
-      {Object.entries(difficulties).map(([label, value]) => (
-        <button
-          key={label}
-          onClick={() => setDifficulty(value)}
-          style={{
-            margin: 5,
-            padding: 10,
-            background: difficulty === value ? "#333" : "#ccc",
-            color: difficulty === value ? "#fff" : "#000",
-          }}
-        >
-          {label}
-        </button>
-      ))}
-
-      <p>
-        {difficulty} x {difficulty}
-      </p>
-
-      {/* Generate */}
-      {image && (
-        <div>
-          <img src={image} width="200" alt="preview" />
-          <br />
-          <button onClick={generatePuzzle}>Generate Puzzle</button>
-        </div>
-      )}
-      <button onClick={savePuzzle} style={{ marginTop: 10 }}>
-        Share Puzzle
-      </button>
-
-      {/* Puzzle Grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${difficulty}, 60px)`,
-          gap: 2,
-          marginTop: 20,
-        }}
-      >
-        {pieces.map((piece, index) => (
-          <div
-            key={piece.id}
-            draggable
-            onDragStart={() => setDraggedIndex(index)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => handleDrop(index)}
-            style={{
-              width: 60,
-              height: 60,
-              border: "1px solid black",
-            }}
-          >
-            <img
-              src={piece.src}
-              alt=""
-              style={{ width: "100%", height: "100%" }}
-            />
-          </div>
-        ))}
+      <div style={{ marginBottom: 16 }}>
+        <label>Puzzle title</label>
+        <br />
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Enter a title"
+          style={{ width: "100%", padding: 10, marginTop: 6 }}
+        />
       </div>
 
-      {/* Completion Message */}
-      {completed && <h2 style={{ marginTop: 20 }}>🎉 Puzzle Complete!</h2>}
+      <div style={{ marginBottom: 16 }}>
+        <label>Upload image</label>
+        <br />
+        <input type="file" accept="image/*" onChange={handleUpload} />
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label>Choose template</label>
+        <br />
+        <select
+          value={template}
+          onChange={(e) => setTemplate(e.target.value)}
+          style={{ width: "100%", padding: 10, marginTop: 6 }}
+        >
+          <option value="standard">Standard</option>
+          <option value="invite">Invite</option>
+          <option value="message">Secret Message</option>
+          <option value="coupon">Coupon Reveal</option>
+          <option value="announcement">Announcement</option>
+        </select>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label>Reveal message</label>
+        <br />
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="What should appear after the puzzle is solved?"
+          rows={4}
+          style={{ width: "100%", padding: 10, marginTop: 6 }}
+        />
+      </div>
+
+      {template === "invite" && (
+        <div style={{ marginBottom: 16 }}>
+          <h3>Invite details</h3>
+
+          <input
+            type="text"
+            value={eventDate}
+            onChange={(e) => setEventDate(e.target.value)}
+            placeholder="Event date"
+            style={{ width: "100%", padding: 10, marginBottom: 10 }}
+          />
+
+          <input
+            type="text"
+            value={eventTime}
+            onChange={(e) => setEventTime(e.target.value)}
+            placeholder="Event time"
+            style={{ width: "100%", padding: 10, marginBottom: 10 }}
+          />
+
+          <input
+            type="text"
+            value={eventLocation}
+            onChange={(e) => setEventLocation(e.target.value)}
+            placeholder="Event location"
+            style={{ width: "100%", padding: 10 }}
+          />
+        </div>
+      )}
+
+      <div style={{ marginBottom: 16 }}>
+        <label>Select difficulty</label>
+        <div style={{ marginTop: 8 }}>
+          {Object.entries(difficulties).map(([label, value]) => (
+            <button
+              key={label}
+              onClick={() => setDifficulty(value)}
+              style={{
+                marginRight: 8,
+                marginBottom: 8,
+                padding: "10px 14px",
+                background: difficulty === value ? "#222" : "#ddd",
+                color: difficulty === value ? "#fff" : "#000",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p>
+          Selected: {difficulty} x {difficulty}
+        </p>
+      </div>
+
+      {image && (
+        <div style={{ marginBottom: 20 }}>
+          <h3>Preview</h3>
+          <img
+            src={image}
+            alt="preview"
+            style={{ maxWidth: 250, borderRadius: 8 }}
+          />
+        </div>
+      )}
+
+      <button
+        onClick={savePuzzle}
+        style={{
+          padding: "12px 18px",
+          border: "none",
+          borderRadius: 8,
+          cursor: "pointer",
+        }}
+      >
+        Save and Share Puzzle
+      </button>
     </div>
   );
-}
-function savePuzzle() {
-  const id = Math.random().toString(36).substring(2, 9);
-
-  const puzzleData = {
-    image,
-    difficulty,
-  };
-
-  localStorage.setItem(`puzzle-${id}`, JSON.stringify(puzzleData));
-
-  const link = `${window.location.origin}/puzzle/${id}`;
-
-  alert("Share this link:\n" + link);
-}
-export default function Create() {
-  // state here...
-
-  function savePuzzle() {
-    // code here...
-  }
-
-  return ( ... )
 }
