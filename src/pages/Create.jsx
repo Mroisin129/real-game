@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "../firebase";
 
 export default function Create() {
   const [image, setImage] = useState(null);
@@ -9,46 +11,57 @@ export default function Create() {
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
   const [eventLocation, setEventLocation] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const difficulties = {
     Easy: 3,
     Medium: 6,
     Hard: 10,
-    Insane: 16,
+    Insane: 16
   };
 
   function handleUpload(e) {
     const file = e.target.files[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setImage(url);
-    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImage(reader.result);
+    };
+    reader.readAsDataURL(file);
   }
 
-  function savePuzzle() {
+  async function savePuzzle() {
     if (!image) {
       alert("Upload an image first");
       return;
     }
 
-    const id = Math.random().toString(36).substring(2, 9);
+    try {
+      setLoading(true);
 
-    const puzzleData = {
-      id,
-      title,
-      image,
-      difficulty,
-      template,
-      message,
-      eventDate,
-      eventTime,
-      eventLocation,
-    };
+      const puzzleData = {
+        title,
+        image,
+        difficulty,
+        template,
+        message,
+        eventDate,
+        eventTime,
+        eventLocation,
+        createdAt: Date.now()
+      };
 
-    localStorage.setItem(`puzzle-${id}`, JSON.stringify(puzzleData));
+      const docRef = await addDoc(collection(db, "puzzles"), puzzleData);
+      const link = `${window.location.origin}/puzzle/${docRef.id}`;
 
-    const link = `${window.location.origin}/puzzle/${id}`;
-    alert("Share this link:\n" + link);
+      alert("Share this link:\n" + link);
+    } catch (error) {
+      console.error("Error saving puzzle:", error);
+      alert("There was a problem saving the puzzle.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -137,6 +150,7 @@ export default function Create() {
           {Object.entries(difficulties).map(([label, value]) => (
             <button
               key={label}
+              type="button"
               onClick={() => setDifficulty(value)}
               style={{
                 marginRight: 8,
@@ -146,7 +160,7 @@ export default function Create() {
                 color: difficulty === value ? "#fff" : "#000",
                 border: "none",
                 borderRadius: 6,
-                cursor: "pointer",
+                cursor: "pointer"
               }}
             >
               {label}
@@ -171,14 +185,15 @@ export default function Create() {
 
       <button
         onClick={savePuzzle}
+        disabled={loading}
         style={{
           padding: "12px 18px",
           border: "none",
           borderRadius: 8,
-          cursor: "pointer",
+          cursor: "pointer"
         }}
       >
-        Save and Share Puzzle
+        {loading ? "Saving..." : "Save and Share Puzzle"}
       </button>
     </div>
   );
