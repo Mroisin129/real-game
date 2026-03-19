@@ -7,48 +7,82 @@ import { db } from "../firebase";
 export default function Play() {
   const { id } = useParams();
 
-  const [puzzle, setPuzzle] = useState(null);
+  const [invite, setInvite] = useState(null);
   const [pieces, setPieces] = useState([]);
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [completed, setCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showReference, setShowReference] = useState(false);
+  const [pieceSize, setPieceSize] = useState(80);
+
+  function updatePieceSize(difficulty) {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const availableWidth = width - 80;
+    const availableHeight = height - 260;
+    const boardSize = Math.min(availableWidth, availableHeight, 900);
+    setPieceSize(Math.max(32, Math.floor(boardSize / difficulty)));
+  }
 
   useEffect(() => {
-    async function loadPuzzle() {
+    async function loadInvite() {
       try {
+        console.log("Loading invite", id);
+
         const docRef = doc(db, "puzzles", id);
         const docSnap = await getDoc(docRef);
 
+        console.log("Doc exists:", docSnap.exists());
+
         if (!docSnap.exists()) {
-          setPuzzle(null);
+          setInvite(null);
           setLoading(false);
           return;
         }
 
-        const puzzleData = docSnap.data();
-        setPuzzle(puzzleData);
+        const data = docSnap.data();
+        const sourceImage = data.inviteImage || data.image || null;
 
-        if (puzzleData.image) {
-          generatePuzzlePieces(puzzleData.image, puzzleData.difficulty);
+        const normalized = {
+          ...data,
+          sourceImage
+        };
+
+        setInvite(normalized);
+
+        if (sourceImage && data.difficulty) {
+          updatePieceSize(data.difficulty);
+          buildPieces(sourceImage, data.difficulty);
         }
 
         setLoading(false);
       } catch (error) {
-        console.error("Error loading puzzle:", error);
-        setPuzzle(null);
+        console.error("Error loading invite:", error);
+        setInvite(null);
         setLoading(false);
       }
     }
 
-    loadPuzzle();
+    loadInvite();
   }, [id]);
 
-  function generatePuzzlePieces(imageSrc, difficulty) {
+  useEffect(() => {
+    if (!invite) return;
+
+    function handleResize() {
+      updatePieceSize(invite.difficulty);
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [invite]);
+
+  function buildPieces(imageSrc, difficulty) {
     const img = new Image();
     img.src = imageSrc;
 
     img.onload = () => {
-      const size = 360;
+      const size = 1200;
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
@@ -56,27 +90,26 @@ export default function Play() {
       canvas.height = size;
       ctx.drawImage(img, 0, 0, size, size);
 
-      const pieceSize = size / difficulty;
-      let newPieces = [];
+      const sourcePieceSize = size / difficulty;
+      const newPieces = [];
 
       for (let row = 0; row < difficulty; row++) {
         for (let col = 0; col < difficulty; col++) {
           const pieceCanvas = document.createElement("canvas");
-          pieceCanvas.width = pieceSize;
-          pieceCanvas.height = pieceSize;
+          pieceCanvas.width = sourcePieceSize;
+          pieceCanvas.height = sourcePieceSize;
 
           const pieceCtx = pieceCanvas.getContext("2d");
-
           pieceCtx.drawImage(
             canvas,
-            col * pieceSize,
-            row * pieceSize,
-            pieceSize,
-            pieceSize,
+            col * sourcePieceSize,
+            row * sourcePieceSize,
+            sourcePieceSize,
+            sourcePieceSize,
             0,
             0,
-            pieceSize,
-            pieceSize
+            sourcePieceSize,
+            sourcePieceSize
           );
 
           newPieces.push({
@@ -87,9 +120,13 @@ export default function Play() {
         }
       }
 
-      newPieces = newPieces.sort(() => Math.random() - 0.5);
+      newPieces.sort(() => Math.random() - 0.5);
       setPieces(newPieces);
       setCompleted(false);
+    };
+
+    img.onerror = () => {
+      console.error("Failed to load source image for puzzle.");
     };
   }
 
@@ -103,11 +140,8 @@ export default function Play() {
 
     setPieces(updated);
     setDraggedIndex(null);
-    checkCompletion(updated);
-  }
 
-  function checkCompletion(piecesArray) {
-    const isComplete = piecesArray.every(
+    const isComplete = updated.every(
       (piece, index) => piece.correctIndex === index
     );
 
@@ -123,24 +157,24 @@ export default function Play() {
 
   if (loading) {
     return (
-      <div className="page">
-        <div className="container">
+      <div className="page play-page">
+        <div className="play-shell">
           <div className="card">
-            <h1>Loading puzzle...</h1>
+            <h1>Loading invite...</h1>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!puzzle) {
+  if (!invite) {
     return (
-      <div className="page">
-        <div className="container">
+      <div className="page play-page">
+        <div className="play-shell">
           <div className="card">
-            <h1>Puzzle not found</h1>
+            <h1>Invite not found</h1>
             <p className="meta">
-              This puzzle may have been deleted or the link may be incorrect.
+              This invite may have been deleted or the link may be incorrect.
             </p>
           </div>
         </div>
@@ -149,39 +183,51 @@ export default function Play() {
   }
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="play-header">
+    <div className="page play-page">
+      <div className="play-shell">
+        <div className="play-topbar">
           <div>
-            <h1 style={{ margin: 0 }}>{puzzle.title || "Play Puzzle"}</h1>
+            <h1 style={{ margin: 0 }}>{invite.title || "Play Invite"}</h1>
             <p className="meta" style={{ marginTop: 8 }}>
-              Difficulty: {puzzle.difficulty} × {puzzle.difficulty}
+              Difficulty: {invite.difficulty} × {invite.difficulty}
             </p>
           </div>
 
-          <img
-            src={puzzle.image}
-            alt="Reference"
-            className="reference-image"
-          />
+          <div className="reference-panel">
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => setShowReference((prev) => !prev)}
+            >
+              {showReference ? "Hide Invite Preview" : "Show Invite Preview"}
+            </button>
+
+            {showReference && invite.sourceImage && (
+              <img
+                src={invite.sourceImage}
+                alt="Invite Preview"
+                className="reference-image"
+              />
+            )}
+          </div>
         </div>
 
-        <div className="puzzle-wrap">
+        <div className="board-stage">
           <div
             className="puzzle-grid"
             style={{
-              gridTemplateColumns: `repeat(${puzzle.difficulty}, 60px)`
+              gridTemplateColumns: `repeat(${invite.difficulty}, ${pieceSize}px)`
             }}
           >
             {pieces.map((piece, index) => (
               <div
                 key={piece.id}
-                className="puzzle-piece"
+                className="puzzle-piece puzzle-piece-shaped"
                 draggable
                 onDragStart={() => setDraggedIndex(index)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => handleDrop(index)}
-                style={{ width: 60, height: 60 }}
+                style={{ width: pieceSize, height: pieceSize }}
               >
                 <img src={piece.src} alt="" />
               </div>
@@ -191,31 +237,14 @@ export default function Play() {
 
         {completed && (
           <div className="reveal-card">
-            <div className="badge">Solved</div>
-            <h2 style={{ marginTop: 0 }}>🎉 Puzzle Complete!</h2>
-
-            {puzzle.template === "invite" ? (
-              <div>
-                <h3>You’re Invited!</h3>
-                <p>{puzzle.message}</p>
-                {puzzle.eventDate && (
-                  <p>
-                    <strong>Date:</strong> {puzzle.eventDate}
-                  </p>
-                )}
-                {puzzle.eventTime && (
-                  <p>
-                    <strong>Time:</strong> {puzzle.eventTime}
-                  </p>
-                )}
-                {puzzle.eventLocation && (
-                  <p>
-                    <strong>Location:</strong> {puzzle.eventLocation}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p>{puzzle.message || "Nice job solving the puzzle."}</p>
+            <div className="badge">Unlocked</div>
+            <h2 style={{ marginTop: 0 }}>🎉 Invite Unlocked!</h2>
+            {invite.subtitle && <p><strong>{invite.subtitle}</strong></p>}
+            {invite.message && <p>{invite.message}</p>}
+            {invite.eventDate && <p><strong>Date:</strong> {invite.eventDate}</p>}
+            {invite.eventTime && <p><strong>Time:</strong> {invite.eventTime}</p>}
+            {invite.eventLocation && (
+              <p><strong>Location:</strong> {invite.eventLocation}</p>
             )}
           </div>
         )}
@@ -223,4 +252,3 @@ export default function Play() {
     </div>
   );
 }
-
