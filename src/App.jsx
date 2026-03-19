@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
-import Create from "./pages/Create.jsx";
-import Play from "./pages/Play.jsx";
+import Create from "./pages/Create";
+import Play from "./pages/Play";
 
 export default function App() {
   return (

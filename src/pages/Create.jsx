@@ -54,7 +54,6 @@ export default function Create() {
 
       const docRef = await addDoc(collection(db, "puzzles"), puzzleData);
       const link = `${window.location.origin}/puzzle/${docRef.id}`;
-
       alert("Share this link:\n" + link);
     } catch (error) {
       console.error("Error saving puzzle:", error);
@@ -65,136 +64,144 @@ export default function Create() {
   }
 
   return (
-    <div style={{ padding: 20, maxWidth: 700, margin: "0 auto" }}>
-      <h1>Create Puzzle</h1>
-
-      <div style={{ marginBottom: 16 }}>
-        <label>Puzzle title</label>
-        <br />
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Enter a title"
-          style={{ width: "100%", padding: 10, marginTop: 6 }}
-        />
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <label>Upload image</label>
-        <br />
-        <input type="file" accept="image/*" onChange={handleUpload} />
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <label>Choose template</label>
-        <br />
-        <select
-          value={template}
-          onChange={(e) => setTemplate(e.target.value)}
-          style={{ width: "100%", padding: 10, marginTop: 6 }}
-        >
-          <option value="standard">Standard</option>
-          <option value="invite">Invite</option>
-          <option value="message">Secret Message</option>
-          <option value="coupon">Coupon Reveal</option>
-          <option value="announcement">Announcement</option>
-        </select>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <label>Reveal message</label>
-        <br />
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="What should appear after the puzzle is solved?"
-          rows={4}
-          style={{ width: "100%", padding: 10, marginTop: 6 }}
-        />
-      </div>
-
-      {template === "invite" && (
-        <div style={{ marginBottom: 16 }}>
-          <h3>Invite details</h3>
-
-          <input
-            type="text"
-            value={eventDate}
-            onChange={(e) => setEventDate(e.target.value)}
-            placeholder="Event date"
-            style={{ width: "100%", padding: 10, marginBottom: 10 }}
-          />
-
-          <input
-            type="text"
-            value={eventTime}
-            onChange={(e) => setEventTime(e.target.value)}
-            placeholder="Event time"
-            style={{ width: "100%", padding: 10, marginBottom: 10 }}
-          />
-
-          <input
-            type="text"
-            value={eventLocation}
-            onChange={(e) => setEventLocation(e.target.value)}
-            placeholder="Event location"
-            style={{ width: "100%", padding: 10 }}
-          />
+    <div className="page">
+      <div className="container">
+        <div className="hero">
+          <h1>Turn any photo into a shareable puzzle</h1>
+          <p>
+            Create invites, secret reveals, announcements, and playable custom
+            puzzles in seconds.
+          </p>
         </div>
-      )}
 
-      <div style={{ marginBottom: 16 }}>
-        <label>Select difficulty</label>
-        <div style={{ marginTop: 8 }}>
-          {Object.entries(difficulties).map(([label, value]) => (
-            <button
-              key={label}
-              type="button"
-              onClick={() => setDifficulty(value)}
-              style={{
-                marginRight: 8,
-                marginBottom: 8,
-                padding: "10px 14px",
-                background: difficulty === value ? "#222" : "#ddd",
-                color: difficulty === value ? "#fff" : "#000",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer"
-              }}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="grid-layout">
+          <div className="card">
+            <h2>Create your puzzle</h2>
+
+            <div className="field">
+              <label className="label">Puzzle title</label>
+              <input
+                className="input"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Maeve’s Birthday Puzzle"
+              />
+            </div>
+
+            <div className="field">
+              <label className="label">Upload image</label>
+              <input
+                className="file-input"
+                type="file"
+                accept="image/*"
+                onChange={handleUpload}
+              />
+            </div>
+
+            <div className="field">
+              <label className="label">Puzzle type</label>
+              <select
+                className="select"
+                value={template}
+                onChange={(e) => setTemplate(e.target.value)}
+              >
+                <option value="standard">Standard</option>
+                <option value="invite">Invite</option>
+                <option value="message">Secret Message</option>
+                <option value="coupon">Coupon Reveal</option>
+                <option value="announcement">Announcement</option>
+              </select>
+            </div>
+
+            <div className="field">
+              <label className="label">Reveal message</label>
+              <textarea
+                className="textarea"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="What should appear after the puzzle is solved?"
+              />
+            </div>
+
+            {template === "invite" && (
+              <div className="field">
+                <label className="label">Invite details</label>
+                <input
+                  className="input"
+                  type="text"
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  placeholder="April 20, 2026"
+                  style={{ marginBottom: 10 }}
+                />
+                <input
+                  className="input"
+                  type="text"
+                  value={eventTime}
+                  onChange={(e) => setEventTime(e.target.value)}
+                  placeholder="7:00 PM"
+                  style={{ marginBottom: 10 }}
+                />
+                <input
+                  className="input"
+                  type="text"
+                  value={eventLocation}
+                  onChange={(e) => setEventLocation(e.target.value)}
+                  placeholder="123 Main Street"
+                />
+              </div>
+            )}
+
+            <div className="field">
+              <label className="label">Difficulty</label>
+              <div className="difficulty-grid">
+                {Object.entries(difficulties).map(([label, value]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={`difficulty-chip ${
+                      difficulty === value ? "active" : ""
+                    }`}
+                    onClick={() => setDifficulty(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="meta">
+                Selected: {difficulty} × {difficulty}
+              </div>
+            </div>
+
+            <div className="button-row">
+              <button className="button" onClick={savePuzzle} disabled={loading}>
+                {loading ? "Saving..." : "Save & Share Puzzle"}
+              </button>
+            </div>
+          </div>
+
+          <div className="card">
+            <h2>Live preview</h2>
+            <div className="preview-box">
+              {image ? (
+                <img src={image} alt="Preview" />
+              ) : (
+                <div className="empty-state">
+                  Upload an image to preview your puzzle cover.
+                </div>
+              )}
+            </div>
+
+            <div className="meta" style={{ marginTop: 16 }}>
+              Template: <strong>{template}</strong>
+            </div>
+            <div className="meta">
+              Difficulty: <strong>{difficulty} × {difficulty}</strong>
+            </div>
+          </div>
         </div>
-        <p>
-          Selected: {difficulty} x {difficulty}
-        </p>
       </div>
-
-      {image && (
-        <div style={{ marginBottom: 20 }}>
-          <h3>Preview</h3>
-          <img
-            src={image}
-            alt="preview"
-            style={{ maxWidth: 250, borderRadius: 8 }}
-          />
-        </div>
-      )}
-
-      <button
-        onClick={savePuzzle}
-        disabled={loading}
-        style={{
-          padding: "12px 18px",
-          border: "none",
-          borderRadius: 8,
-          cursor: "pointer"
-        }}
-      >
-        {loading ? "Saving..." : "Save and Share Puzzle"}
-      </button>
     </div>
   );
 }
