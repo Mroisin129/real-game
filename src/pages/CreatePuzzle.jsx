@@ -8,19 +8,26 @@ import PartyTemplate from "../components/templates/PartyTemplate.jsx";
 const inviteTemplates = [
   {
     id: "birthday-photo",
-    name: "Birthday",
-    description: "Celebration-focused"
+    name: "Create your own",
+    description: "Use your own image"
   },
   {
     id: "wedding-elegant",
     name: "Wedding",
-    description: "Light and romantic"
+    description: "Romantic"
   },
   {
     id: "party-modern",
     name: "Party",
-    description: "Bold and modern"
+    description: "Party"
   }
+];
+
+const fontOptions = [
+  { label: "Inter", value: "Inter, sans-serif" },
+  { label: "Playfair Display", value: "'Playfair Display', serif" },
+  { label: "Montserrat", value: "'Montserrat', sans-serif" },
+  { label: "Cormorant Garamond", value: "'Cormorant Garamond', serif" }
 ];
 
 export default function CreatePuzzle() {
@@ -36,6 +43,7 @@ export default function CreatePuzzle() {
   const [template, setTemplate] = useState("birthday-photo");
   const [photo, setPhoto] = useState(null);
   const [nameFontSize, setNameFontSize] = useState(2.6);
+  const [fontFamily, setFontFamily] = useState("Inter, sans-serif");
   const [loading, setLoading] = useState(false);
   const [shareLink, setShareLink] = useState("");
   const [copied, setCopied] = useState(false);
@@ -52,9 +60,28 @@ export default function CreatePuzzle() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhoto(reader.result);
+
+    reader.onload = () => {
+      const img = new Image();
+
+      img.onload = () => {
+        const maxWidth = 1200;
+        const scale = Math.min(1, maxWidth / img.width);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const compressed = canvas.toDataURL("image/jpeg", 0.82);
+        setPhoto(compressed);
+      };
+
+      img.src = reader.result;
     };
+
     reader.readAsDataURL(file);
   }
 
@@ -69,6 +96,50 @@ export default function CreatePuzzle() {
       console.error("Copy failed:", error);
       alert("Could not copy the link.");
     }
+  }
+
+  function renderPreview() {
+    if (template === "birthday-photo") {
+      return (
+        <BirthdayTemplate
+          title={title}
+          subtitle={subtitle}
+          message={message}
+          eventDate={eventDate}
+          eventTime={eventTime}
+          eventLocation={eventLocation}
+          photo={photo}
+          fontFamily={fontFamily}
+        />
+      );
+    }
+
+    if (template === "wedding-elegant") {
+      return (
+        <WeddingTemplate
+          title={title}
+          subtitle={subtitle}
+          message={message}
+          eventDate={eventDate}
+          eventTime={eventTime}
+          eventLocation={eventLocation}
+          nameFontSize={nameFontSize}
+          fontFamily={fontFamily}
+        />
+      );
+    }
+
+    return (
+      <PartyTemplate
+        title={title}
+        subtitle={subtitle}
+        message={message}
+        eventDate={eventDate}
+        eventTime={eventTime}
+        eventLocation={eventLocation}
+        fontFamily={fontFamily}
+      />
+    );
   }
 
   async function saveInvite() {
@@ -93,11 +164,10 @@ export default function CreatePuzzle() {
         eventLocation,
         difficulty,
         nameFontSize,
+        fontFamily: fontFamily || "Inter, sans-serif",
         createdAt: Date.now()
       };
 
-      // Only include photo for the birthday template.
-      // The wedding template does NOT save a rendered invite image anymore.
       if (template === "birthday-photo" && photo) {
         inviteData.photo = photo;
       }
@@ -118,18 +188,23 @@ export default function CreatePuzzle() {
   return (
     <div className="page">
       <div className="container">
-        <div className="hero">
+        <div className="hero hero-compact">
           <h1>Create a puzzle invite</h1>
-          <p>Design the invite first. Then turn that invite into the puzzle.</p>
+          <p>Build the invite, pick a puzzle difficulty, and share the unlock link.</p>
         </div>
 
-        <div className="grid-layout">
-          <div className="card">
-            <h2>Invite settings</h2>
+        <div className="grid-layout create-editor-layout">
+          <div className="card create-sidebar">
+            <div className="create-section">
+              <h2>Invite settings</h2>
+              <p className="meta create-section-meta">
+                Customize the design, details, and puzzle experience.
+              </p>
+            </div>
 
             <div className="field">
               <label className="label">Choose a template</label>
-              <div className="template-picker-grid">
+              <div className="template-picker-grid compact-template-grid">
                 {inviteTemplates.map((item) => (
                   <button
                     key={item.id}
@@ -140,12 +215,25 @@ export default function CreatePuzzle() {
                     onClick={() => setTemplate(item.id)}
                   >
                     <div className="invite-template-name">{item.name}</div>
-                    <div className="invite-template-text">
-                      {item.description}
-                    </div>
+                    <div className="invite-template-text">{item.description}</div>
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="field">
+              <label className="label">Font</label>
+              <select
+                className="select"
+                value={fontFamily}
+                onChange={(e) => setFontFamily(e.target.value)}
+              >
+                {fontOptions.map((font) => (
+                  <option key={font.value} value={font.value}>
+                    {font.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="field">
@@ -173,7 +261,7 @@ export default function CreatePuzzle() {
             <div className="field">
               <label className="label">Message</label>
               <textarea
-                className="textarea"
+                className="textarea compact-textarea"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="request the honour of your presence..."
@@ -210,22 +298,24 @@ export default function CreatePuzzle() {
 
             <div className="field">
               <label className="label">Event details</label>
-              <input
-                className="input"
-                type="text"
-                value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
-                placeholder="June 14"
-                style={{ marginBottom: 10 }}
-              />
-              <input
-                className="input"
-                type="text"
-                value={eventTime}
-                onChange={(e) => setEventTime(e.target.value)}
-                placeholder="At Five PM"
-                style={{ marginBottom: 10 }}
-              />
+
+              <div className="two-column-fields" style={{ marginBottom: 10 }}>
+                <input
+                  className="input"
+                  type="text"
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  placeholder="June 14"
+                />
+                <input
+                  className="input"
+                  type="text"
+                  value={eventTime}
+                  onChange={(e) => setEventTime(e.target.value)}
+                  placeholder="At Five PM"
+                />
+              </div>
+
               <input
                 className="input"
                 type="text"
@@ -289,51 +379,20 @@ export default function CreatePuzzle() {
             )}
           </div>
 
-          <div className="card">
-            <h2>Invite preview</h2>
-
-            <div ref={previewRef} className="invite-preview">
-              {template === "birthday-photo" && (
-                <BirthdayTemplate
-                  title={title}
-                  subtitle={subtitle}
-                  message={message}
-                  eventDate={eventDate}
-                  eventTime={eventTime}
-                  eventLocation={eventLocation}
-                  photo={photo}
-                />
-              )}
-
-              {template === "wedding-elegant" && (
-                <WeddingTemplate
-                  title={title}
-                  subtitle={subtitle}
-                  message={message}
-                  eventDate={eventDate}
-                  eventTime={eventTime}
-                  eventLocation={eventLocation}
-                  nameFontSize={nameFontSize}
-                />
-              )}
-
-              {template === "party-modern" && (
-                <PartyTemplate
-                  title={title}
-                  subtitle={subtitle}
-                  message={message}
-                  eventDate={eventDate}
-                  eventTime={eventTime}
-                  eventLocation={eventLocation}
-                />
-              )}
+          <div className="card create-preview-card">
+            <div className="create-section">
+              <h2>Live preview</h2>
+              <p className="meta create-section-meta">
+                This is the invite your guest will reveal after solving the puzzle.
+              </p>
             </div>
 
-            <div className="meta" style={{ marginTop: 16 }}>
+            <div ref={previewRef} className="invite-preview compact-invite-preview">
+              {renderPreview()}
+            </div>
+
+            <div className="meta" style={{ marginTop: 14 }}>
               Template: <strong>{selectedTemplate?.name}</strong>
-            </div>
-            <div className="meta">
-              The puzzle will use this saved invite data to rebuild the design.
             </div>
           </div>
         </div>

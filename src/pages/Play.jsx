@@ -45,6 +45,7 @@ export default function Play() {
 
         if (!docSnap.exists()) {
           setError("Puzzle not found.");
+          setPuzzleData(null);
           return;
         }
 
@@ -52,6 +53,7 @@ export default function Play() {
       } catch (err) {
         console.error("Error loading puzzle:", err);
         setError("Could not load this invite.");
+        setPuzzleData(null);
       } finally {
         setLoading(false);
       }
@@ -60,7 +62,7 @@ export default function Play() {
     loadPuzzle();
   }, [id]);
 
-  const gridSize = puzzleData?.difficulty || 3;
+  const gridSize = Math.max(2, Number(puzzleData?.difficulty) || 3);
   const totalPieces = gridSize * gridSize;
 
   function renderInvite() {
@@ -107,7 +109,7 @@ export default function Play() {
       );
     }
 
-    return <div>Unknown template.</div>;
+    return <div className="card">Unknown template.</div>;
   }
 
   useEffect(() => {
@@ -116,11 +118,14 @@ export default function Play() {
 
       try {
         setImageReady(false);
+        setInviteImage("");
 
         const images = captureRef.current.querySelectorAll("img");
+
         await Promise.all(
           Array.from(images).map((img) => {
             if (img.complete) return Promise.resolve();
+
             return new Promise((resolve) => {
               img.onload = resolve;
               img.onerror = resolve;
@@ -128,7 +133,7 @@ export default function Play() {
           })
         );
 
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await new Promise((resolve) => setTimeout(resolve, 200));
 
         const canvas = await html2canvas(captureRef.current, {
           useCORS: true,
@@ -151,13 +156,12 @@ export default function Play() {
   }, [puzzleData]);
 
   useEffect(() => {
-    if (!inviteImage || !totalPieces) return;
+    if (!inviteImage) return;
 
     const ordered = Array.from({ length: totalPieces }, (_, index) => index);
     let shuffled = shuffleArray(ordered);
 
-    const alreadySolved = shuffled.every((value, index) => value === index);
-    if (alreadySolved && shuffled.length > 1) {
+    if (shuffled.every((value, index) => value === index) && shuffled.length > 1) {
       [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
     }
 
@@ -165,6 +169,7 @@ export default function Play() {
     setSolved(false);
     setSelectedIndex(null);
     setDraggedIndex(null);
+    setStarted(false);
   }, [inviteImage, totalPieces]);
 
   function fireConfetti() {
@@ -180,6 +185,7 @@ export default function Play() {
         spread: 120,
         origin: { x: 0.2, y: 0.6 }
       });
+
       confetti({
         particleCount: 90,
         spread: 120,
@@ -190,6 +196,7 @@ export default function Play() {
 
   function checkSolved(updatedPieces) {
     const isSolved = updatedPieces.every((value, index) => value === index);
+
     if (isSolved) {
       setSolved(true);
       setSelectedIndex(null);
@@ -233,8 +240,7 @@ export default function Play() {
   }
 
   function handleDrop(index) {
-    if (solved) return;
-    if (draggedIndex === null) return;
+    if (solved || draggedIndex === null) return;
     swapPieces(draggedIndex, index);
     setDraggedIndex(null);
   }
@@ -264,23 +270,24 @@ export default function Play() {
     );
   }
 
-  const boardMaxWidth = 700;
+  const boardMaxWidth = 720;
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="hero">
+    <div className="page play-page">
+      <div className="container play-shell">
+        <div className="hero hero-compact">
           <h1>{solved ? "Invite Unlocked" : puzzleData.title || "You’re Invited"}</h1>
           <p>
             {solved
               ? "You solved the puzzle."
-              : "Drag pieces or click two pieces to swap them into place."}
+              : "Swap the pieces into the correct order to unlock the invitation."}
           </p>
         </div>
 
         {!started && (
-          <div className="card" style={{ textAlign: "center" }}>
+          <div className="card" style={{ textAlign: "center", maxWidth: 520, margin: "0 auto 18px" }}>
             <button
+              type="button"
               className="button"
               onClick={() => setStarted(true)}
               disabled={!imageReady}
@@ -292,48 +299,53 @@ export default function Play() {
 
         {started && !solved && inviteImage && (
           <div className="card">
-            <div
-              className="puzzle-board"
-              style={{
-                display: "grid",
-                gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
-                gap: "0px",
-                width: "100%",
-                maxWidth: `${boardMaxWidth}px`,
-                margin: "0 auto",
-                overflow: "hidden",
-                border: "1px solid rgba(0,0,0,0.08)"
-              }}
-            >
-              {pieces.map((piece, index) => {
-                const row = Math.floor(piece / gridSize);
-                const col = piece % gridSize;
+            <div className="puzzle-wrap puzzle-wrap-centered">
+              <div
+                className="puzzle-board"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
+                  gap: "0px",
+                  width: "100%",
+                  maxWidth: `${boardMaxWidth}px`,
+                  margin: "0 auto",
+                  overflow: "hidden",
+                  borderRadius: "18px",
+                  border: "1px solid rgba(0,0,0,0.08)",
+                  background: "#fff"
+                }}
+              >
+                {pieces.map((piece, index) => {
+                  const row = Math.floor(piece / gridSize);
+                  const col = piece % gridSize;
 
-                return (
-                  <div
-                    key={index}
-                    draggable
-                    onDragStart={() => handleDragStart(index)}
-                    onDragOver={handleDragOver}
-                    onDrop={() => handleDrop(index)}
-                    onClick={() => handlePieceClick(index)}
-                    className={`puzzle-piece ${selectedIndex === index ? "active" : ""}`}
-                    style={{
-                      aspectRatio: "1 / 1",
-                      cursor: "pointer",
-                      userSelect: "none",
-                      backgroundImage: `url(${inviteImage})`,
-                      backgroundSize: `${gridSize * 100}% ${gridSize * 100}%`,
-                      backgroundPosition: `${(col / Math.max(gridSize - 1, 1)) * 100}% ${(row / Math.max(gridSize - 1, 1)) * 100}%`,
-                      backgroundRepeat: "no-repeat",
-                      boxSizing: "border-box",
-                      border: selectedIndex === index
-                        ? "2px solid rgba(0,0,0,0.35)"
-                        : "1px solid rgba(0,0,0,0.06)"
-                    }}
-                  />
-                );
-              })}
+                  return (
+                    <div
+                      key={index}
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={handleDragOver}
+                      onDrop={() => handleDrop(index)}
+                      onClick={() => handlePieceClick(index)}
+                      className={`puzzle-piece ${selectedIndex === index ? "active" : ""}`}
+                      style={{
+                        aspectRatio: "1 / 1",
+                        cursor: "pointer",
+                        userSelect: "none",
+                        backgroundImage: `url(${inviteImage})`,
+                        backgroundSize: `${gridSize * 100}% ${gridSize * 100}%`,
+                        backgroundPosition: `${(col / Math.max(gridSize - 1, 1)) * 100}% ${(row / Math.max(gridSize - 1, 1)) * 100}%`,
+                        backgroundRepeat: "no-repeat",
+                        boxSizing: "border-box",
+                        border:
+                          selectedIndex === index
+                            ? "2px solid rgba(124,58,237,0.55)"
+                            : "1px solid rgba(0,0,0,0.06)"
+                      }}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

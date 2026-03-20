@@ -6,7 +6,7 @@ import CreateTrivia from "./pages/CreateTrivia";
 import CreateScratchoff from "./pages/CreateScratchoff";
 import CreateLocked from "./pages/CreateLocked";
 import Play from "./pages/Play";
-
+import PlayTrivia from "./pages/PlayTrivia.jsx";
 export default function App() {
   return (
     <Routes>
@@ -17,6 +17,7 @@ export default function App() {
       <Route path="/create/scratchoff" element={<CreateScratchoff />} />
       <Route path="/create/locked" element={<CreateLocked />} />
       <Route path="/puzzle/:id" element={<Play />} />
+      <Route path="/trivia/:id" element={<PlayTrivia />} />
     </Routes>
   );
 }

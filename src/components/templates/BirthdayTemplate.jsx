@@ -4,28 +4,37 @@ export default function BirthdayTemplate({
   message,
   eventDate,
   eventTime,
-  eventLocation
+  eventLocation,
+  photo,
+  fontFamily
 }) {
   return (
-    <div className="invite-card invite-card-birthday-clean">
-      <div className="birthday-corner birthday-corner-tl" />
-      <div className="birthday-corner birthday-corner-tr" />
-      <div className="birthday-corner birthday-corner-bl" />
-      <div className="birthday-corner birthday-corner-br" />
-
-      <div className="invite-card-inner birthday-clean-inner">
-        <div className="invite-kicker birthday-kicker">
-          {subtitle || "You're Invited"}
+    <div className="birthday-card-shell">
+      <div className="birthday-card" style={{ fontFamily: fontFamily || "Inter, sans-serif" }}>
+        <div className="birthday-image-block">
+          {photo ? (
+            <img src={photo} alt="Invite" className="birthday-image" />
+          ) : (
+            <div className="birthday-placeholder">Upload a photo</div>
+          )}
         </div>
 
-        <h1>{title || "Birthday Party!"}</h1>
+        <div className="birthday-text">
+          <div className="birthday-sub">
+            {subtitle || "You're Invited"}
+          </div>
 
-        {message && <p className="invite-message">{message}</p>}
+          <h1>{title || "Birthday Celebration"}</h1>
 
-        <div className="invite-details">
-          {eventDate && <div>{eventDate}</div>}
-          {eventTime && <div>{eventTime}</div>}
-          {eventLocation && <div>{eventLocation}</div>}
+          {message ? <p className="birthday-message">{message}</p> : null}
+
+          <div className="birthday-divider" />
+
+          <div className="birthday-details">
+            {eventDate ? <div>{eventDate}</div> : null}
+            {eventTime ? <div>{eventTime}</div> : null}
+            {eventLocation ? <div>{eventLocation}</div> : null}
+          </div>
         </div>
       </div>
     </div>
