@@ -11,13 +11,13 @@ const formats = [
     title: "Trivia Invite",
     text: "Guests answer a question to unlock the invite.",
     path: "/create/trivia",
-    status: "Coming Soon"
+    status: "Available"
   },
   {
     title: "Scratch-Off Invite",
     text: "Scratch to reveal the event details underneath.",
     path: "/create/scratchoff",
-    status: "Coming Soon"
+    status: "Available"
   },
   {
     title: "Locked Message Invite",
