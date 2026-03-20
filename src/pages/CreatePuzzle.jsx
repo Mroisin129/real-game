@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import { collection, addDoc } from "firebase/firestore";
-import html2canvas from "html2canvas";
 import { db } from "../firebase";
 import BirthdayTemplate from "../components/templates/BirthdayTemplate.jsx";
 import WeddingTemplate from "../components/templates/WeddingTemplate.jsx";
@@ -9,18 +8,18 @@ import PartyTemplate from "../components/templates/PartyTemplate.jsx";
 const inviteTemplates = [
   {
     id: "birthday-photo",
-    name: "Playful Birthday",
-    description: "Bright, playful, and celebration-focused"
+    name: "Birthday",
+    description: "Celebration-focused"
   },
   {
     id: "wedding-elegant",
-    name: "Floral Wedding",
-    description: "Light, romantic, and elegant"
+    name: "Wedding",
+    description: "Light and romantic"
   },
   {
     id: "party-modern",
-    name: "Glam Party",
-    description: "Bold, luxe, and evening-event ready"
+    name: "Party",
+    description: "Bold and modern"
   }
 ];
 
@@ -72,18 +71,6 @@ export default function CreatePuzzle() {
     }
   }
 
-  async function captureInviteImage() {
-    if (!previewRef.current) return null;
-
-    const canvas = await html2canvas(previewRef.current, {
-      backgroundColor: null,
-      scale: 2,
-      useCORS: true
-    });
-
-    return canvas.toDataURL("image/png");
-  }
-
   async function saveInvite() {
     if (!title || !eventDate) {
       alert("Add at least a title and date.");
@@ -95,13 +82,6 @@ export default function CreatePuzzle() {
       setShareLink("");
       setCopied(false);
 
-      const inviteImage = await captureInviteImage();
-
-      if (!inviteImage) {
-        alert("Could not generate the invite image.");
-        return;
-      }
-
       const inviteData = {
         type: "puzzle",
         inviteTemplate: template,
@@ -111,12 +91,16 @@ export default function CreatePuzzle() {
         eventDate,
         eventTime,
         eventLocation,
-        photo,
-        inviteImage,
         difficulty,
         nameFontSize,
         createdAt: Date.now()
       };
+
+      // Only include photo for the birthday template.
+      // The wedding template does NOT save a rendered invite image anymore.
+      if (template === "birthday-photo" && photo) {
+        inviteData.photo = photo;
+      }
 
       const docRef = await addDoc(collection(db, "puzzles"), inviteData);
       const link = `${window.location.origin}/puzzle/${docRef.id}`;
@@ -349,7 +333,7 @@ export default function CreatePuzzle() {
               Template: <strong>{selectedTemplate?.name}</strong>
             </div>
             <div className="meta">
-              This rendered invite will be used as the puzzle image.
+              The puzzle will use this saved invite data to rebuild the design.
             </div>
           </div>
         </div>

@@ -1966,3 +1966,11 @@ img {
   color: #444;
   max-width: 260px;
 }
+.puzzle-board {
+  overflow: visible;
+}
+
+.puzzle-piece {
+  overflow: visible;
+  user-select: none;
+}

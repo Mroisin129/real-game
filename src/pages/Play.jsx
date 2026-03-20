@@ -1,253 +1,357 @@
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
+import html2canvas from "html2canvas";
 import confetti from "canvas-confetti";
 import { db } from "../firebase";
+import BirthdayTemplate from "../components/templates/BirthdayTemplate.jsx";
+import WeddingTemplate from "../components/templates/WeddingTemplate.jsx";
+import PartyTemplate from "../components/templates/PartyTemplate.jsx";
+
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
 export default function Play() {
   const { id } = useParams();
+  const captureRef = useRef(null);
 
-  const [invite, setInvite] = useState(null);
-  const [pieces, setPieces] = useState([]);
-  const [draggedIndex, setDraggedIndex] = useState(null);
-  const [completed, setCompleted] = useState(false);
+  const [puzzleData, setPuzzleData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showReference, setShowReference] = useState(false);
-  const [pieceSize, setPieceSize] = useState(80);
+  const [error, setError] = useState("");
 
-  function updatePieceSize(difficulty) {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const availableWidth = width - 80;
-    const availableHeight = height - 260;
-    const boardSize = Math.min(availableWidth, availableHeight, 900);
-    setPieceSize(Math.max(32, Math.floor(boardSize / difficulty)));
-  }
+  const [inviteImage, setInviteImage] = useState("");
+  const [pieces, setPieces] = useState([]);
+  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [draggedIndex, setDraggedIndex] = useState(null);
+
+  const [started, setStarted] = useState(false);
+  const [solved, setSolved] = useState(false);
+  const [imageReady, setImageReady] = useState(false);
 
   useEffect(() => {
-    async function loadInvite() {
+    async function loadPuzzle() {
       try {
-        console.log("Loading invite", id);
+        setLoading(true);
+        setError("");
 
         const docRef = doc(db, "puzzles", id);
         const docSnap = await getDoc(docRef);
 
-        console.log("Doc exists:", docSnap.exists());
-
         if (!docSnap.exists()) {
-          setInvite(null);
-          setLoading(false);
+          setError("Puzzle not found.");
           return;
         }
 
-        const data = docSnap.data();
-        const sourceImage = data.inviteImage || data.image || null;
-
-        const normalized = {
-          ...data,
-          sourceImage
-        };
-
-        setInvite(normalized);
-
-        if (sourceImage && data.difficulty) {
-          updatePieceSize(data.difficulty);
-          buildPieces(sourceImage, data.difficulty);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Error loading invite:", error);
-        setInvite(null);
+        setPuzzleData(docSnap.data());
+      } catch (err) {
+        console.error("Error loading puzzle:", err);
+        setError("Could not load this invite.");
+      } finally {
         setLoading(false);
       }
     }
 
-    loadInvite();
+    loadPuzzle();
   }, [id]);
 
-  useEffect(() => {
-    if (!invite) return;
+  const gridSize = puzzleData?.difficulty || 3;
+  const totalPieces = gridSize * gridSize;
 
-    function handleResize() {
-      updatePieceSize(invite.difficulty);
+  function renderInvite() {
+    if (!puzzleData) return null;
+
+    if (puzzleData.inviteTemplate === "birthday-photo") {
+      return (
+        <BirthdayTemplate
+          title={puzzleData.title}
+          subtitle={puzzleData.subtitle}
+          message={puzzleData.message}
+          eventDate={puzzleData.eventDate}
+          eventTime={puzzleData.eventTime}
+          eventLocation={puzzleData.eventLocation}
+          photo={puzzleData.photo}
+        />
+      );
     }
 
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [invite]);
+    if (puzzleData.inviteTemplate === "wedding-elegant") {
+      return (
+        <WeddingTemplate
+          title={puzzleData.title}
+          subtitle={puzzleData.subtitle}
+          message={puzzleData.message}
+          eventDate={puzzleData.eventDate}
+          eventTime={puzzleData.eventTime}
+          eventLocation={puzzleData.eventLocation}
+          nameFontSize={puzzleData.nameFontSize}
+        />
+      );
+    }
 
-  function buildPieces(imageSrc, difficulty) {
-    const img = new Image();
-    img.src = imageSrc;
+    if (puzzleData.inviteTemplate === "party-modern") {
+      return (
+        <PartyTemplate
+          title={puzzleData.title}
+          subtitle={puzzleData.subtitle}
+          message={puzzleData.message}
+          eventDate={puzzleData.eventDate}
+          eventTime={puzzleData.eventTime}
+          eventLocation={puzzleData.eventLocation}
+        />
+      );
+    }
 
-    img.onload = () => {
-      const size = 1200;
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      canvas.width = size;
-      canvas.height = size;
-      ctx.drawImage(img, 0, 0, size, size);
-
-      const sourcePieceSize = size / difficulty;
-      const newPieces = [];
-
-      for (let row = 0; row < difficulty; row++) {
-        for (let col = 0; col < difficulty; col++) {
-          const pieceCanvas = document.createElement("canvas");
-          pieceCanvas.width = sourcePieceSize;
-          pieceCanvas.height = sourcePieceSize;
-
-          const pieceCtx = pieceCanvas.getContext("2d");
-          pieceCtx.drawImage(
-            canvas,
-            col * sourcePieceSize,
-            row * sourcePieceSize,
-            sourcePieceSize,
-            sourcePieceSize,
-            0,
-            0,
-            sourcePieceSize,
-            sourcePieceSize
-          );
-
-          newPieces.push({
-            id: `${row}-${col}`,
-            src: pieceCanvas.toDataURL(),
-            correctIndex: row * difficulty + col
-          });
-        }
-      }
-
-      newPieces.sort(() => Math.random() - 0.5);
-      setPieces(newPieces);
-      setCompleted(false);
-    };
-
-    img.onerror = () => {
-      console.error("Failed to load source image for puzzle.");
-    };
+    return <div>Unknown template.</div>;
   }
 
-  function handleDrop(targetIndex) {
-    if (draggedIndex === null) return;
+  useEffect(() => {
+    async function generateInviteImage() {
+      if (!puzzleData || !captureRef.current) return;
+
+      try {
+        setImageReady(false);
+
+        const images = captureRef.current.querySelectorAll("img");
+        await Promise.all(
+          Array.from(images).map((img) => {
+            if (img.complete) return Promise.resolve();
+            return new Promise((resolve) => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            });
+          })
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 150));
+
+        const canvas = await html2canvas(captureRef.current, {
+          useCORS: true,
+          scale: 2,
+          backgroundColor: null
+        });
+
+        const dataUrl = canvas.toDataURL("image/png");
+        setInviteImage(dataUrl);
+        setImageReady(true);
+      } catch (err) {
+        console.error("Error creating invite image:", err);
+        setError("Could not build the puzzle image.");
+      }
+    }
+
+    if (puzzleData) {
+      generateInviteImage();
+    }
+  }, [puzzleData]);
+
+  useEffect(() => {
+    if (!inviteImage || !totalPieces) return;
+
+    const ordered = Array.from({ length: totalPieces }, (_, index) => index);
+    let shuffled = shuffleArray(ordered);
+
+    const alreadySolved = shuffled.every((value, index) => value === index);
+    if (alreadySolved && shuffled.length > 1) {
+      [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+    }
+
+    setPieces(shuffled);
+    setSolved(false);
+    setSelectedIndex(null);
+    setDraggedIndex(null);
+  }, [inviteImage, totalPieces]);
+
+  function fireConfetti() {
+    confetti({
+      particleCount: 140,
+      spread: 90,
+      origin: { y: 0.6 }
+    });
+
+    setTimeout(() => {
+      confetti({
+        particleCount: 90,
+        spread: 120,
+        origin: { x: 0.2, y: 0.6 }
+      });
+      confetti({
+        particleCount: 90,
+        spread: 120,
+        origin: { x: 0.8, y: 0.6 }
+      });
+    }, 250);
+  }
+
+  function checkSolved(updatedPieces) {
+    const isSolved = updatedPieces.every((value, index) => value === index);
+    if (isSolved) {
+      setSolved(true);
+      setSelectedIndex(null);
+      setDraggedIndex(null);
+      fireConfetti();
+    }
+  }
+
+  function swapPieces(fromIndex, toIndex) {
+    if (fromIndex === toIndex) return;
 
     const updated = [...pieces];
-    const temp = updated[draggedIndex];
-    updated[draggedIndex] = updated[targetIndex];
-    updated[targetIndex] = temp;
-
+    [updated[fromIndex], updated[toIndex]] = [updated[toIndex], updated[fromIndex]];
     setPieces(updated);
-    setDraggedIndex(null);
+    checkSolved(updated);
+  }
 
-    const isComplete = updated.every(
-      (piece, index) => piece.correctIndex === index
-    );
+  function handlePieceClick(index) {
+    if (solved) return;
 
-    if (isComplete) {
-      setCompleted(true);
-      confetti({
-        particleCount: 220,
-        spread: 120,
-        origin: { y: 0.6 }
-      });
+    if (selectedIndex === null) {
+      setSelectedIndex(index);
+      return;
     }
+
+    if (selectedIndex === index) {
+      setSelectedIndex(null);
+      return;
+    }
+
+    swapPieces(selectedIndex, index);
+  }
+
+  function handleDragStart(index) {
+    if (solved) return;
+    setDraggedIndex(index);
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+  }
+
+  function handleDrop(index) {
+    if (solved) return;
+    if (draggedIndex === null) return;
+    swapPieces(draggedIndex, index);
+    setDraggedIndex(null);
   }
 
   if (loading) {
     return (
-      <div className="page play-page">
-        <div className="play-shell">
+      <div className="page">
+        <div className="container">
           <div className="card">
-            <h1>Loading invite...</h1>
+            <h2>Loading invite...</h2>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!invite) {
+  if (error || !puzzleData) {
     return (
-      <div className="page play-page">
-        <div className="play-shell">
+      <div className="page">
+        <div className="container">
           <div className="card">
-            <h1>Invite not found</h1>
-            <p className="meta">
-              This invite may have been deleted or the link may be incorrect.
-            </p>
+            <h2>Invite unavailable</h2>
+            <p>{error || "This invite could not be found."}</p>
           </div>
         </div>
       </div>
     );
   }
+
+  const boardMaxWidth = 700;
 
   return (
-    <div className="page play-page">
-      <div className="play-shell">
-        <div className="play-topbar">
-          <div>
-            <h1 style={{ margin: 0 }}>{invite.title || "Play Invite"}</h1>
-            <p className="meta" style={{ marginTop: 8 }}>
-              Difficulty: {invite.difficulty} × {invite.difficulty}
-            </p>
-          </div>
+    <div className="page">
+      <div className="container">
+        <div className="hero">
+          <h1>{solved ? "Invite Unlocked" : puzzleData.title || "You’re Invited"}</h1>
+          <p>
+            {solved
+              ? "You solved the puzzle."
+              : "Drag pieces or click two pieces to swap them into place."}
+          </p>
+        </div>
 
-          <div className="reference-panel">
+        {!started && (
+          <div className="card" style={{ textAlign: "center" }}>
             <button
-              type="button"
-              className="button-secondary"
-              onClick={() => setShowReference((prev) => !prev)}
+              className="button"
+              onClick={() => setStarted(true)}
+              disabled={!imageReady}
             >
-              {showReference ? "Hide Invite Preview" : "Show Invite Preview"}
+              {imageReady ? "Start Puzzle" : "Preparing Puzzle..."}
             </button>
-
-            {showReference && invite.sourceImage && (
-              <img
-                src={invite.sourceImage}
-                alt="Invite Preview"
-                className="reference-image"
-              />
-            )}
-          </div>
-        </div>
-
-        <div className="board-stage">
-          <div
-            className="puzzle-grid"
-            style={{
-              gridTemplateColumns: `repeat(${invite.difficulty}, ${pieceSize}px)`
-            }}
-          >
-            {pieces.map((piece, index) => (
-              <div
-                key={piece.id}
-                className="puzzle-piece puzzle-piece-shaped"
-                draggable
-                onDragStart={() => setDraggedIndex(index)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => handleDrop(index)}
-                style={{ width: pieceSize, height: pieceSize }}
-              >
-                <img src={piece.src} alt="" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {completed && (
-          <div className="reveal-card">
-            <div className="badge">Unlocked</div>
-            <h2 style={{ marginTop: 0 }}>🎉 Invite Unlocked!</h2>
-            {invite.subtitle && <p><strong>{invite.subtitle}</strong></p>}
-            {invite.message && <p>{invite.message}</p>}
-            {invite.eventDate && <p><strong>Date:</strong> {invite.eventDate}</p>}
-            {invite.eventTime && <p><strong>Time:</strong> {invite.eventTime}</p>}
-            {invite.eventLocation && (
-              <p><strong>Location:</strong> {invite.eventLocation}</p>
-            )}
           </div>
         )}
+
+        {started && !solved && inviteImage && (
+          <div className="card">
+            <div
+              className="puzzle-board"
+              style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
+                gap: "0px",
+                width: "100%",
+                maxWidth: `${boardMaxWidth}px`,
+                margin: "0 auto",
+                overflow: "hidden",
+                border: "1px solid rgba(0,0,0,0.08)"
+              }}
+            >
+              {pieces.map((piece, index) => {
+                const row = Math.floor(piece / gridSize);
+                const col = piece % gridSize;
+
+                return (
+                  <div
+                    key={index}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDrop(index)}
+                    onClick={() => handlePieceClick(index)}
+                    className={`puzzle-piece ${selectedIndex === index ? "active" : ""}`}
+                    style={{
+                      aspectRatio: "1 / 1",
+                      cursor: "pointer",
+                      userSelect: "none",
+                      backgroundImage: `url(${inviteImage})`,
+                      backgroundSize: `${gridSize * 100}% ${gridSize * 100}%`,
+                      backgroundPosition: `${(col / Math.max(gridSize - 1, 1)) * 100}% ${(row / Math.max(gridSize - 1, 1)) * 100}%`,
+                      backgroundRepeat: "no-repeat",
+                      boxSizing: "border-box",
+                      border: selectedIndex === index
+                        ? "2px solid rgba(0,0,0,0.35)"
+                        : "1px solid rgba(0,0,0,0.06)"
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {solved && <div className="card">{renderInvite()}</div>}
+
+        <div
+          style={{
+            position: "absolute",
+            left: "-9999px",
+            top: 0,
+            width: "800px",
+            pointerEvents: "none",
+            opacity: 1
+          }}
+        >
+          <div ref={captureRef}>{renderInvite()}</div>
+        </div>
       </div>
     </div>
   );
